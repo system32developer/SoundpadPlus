@@ -1,17 +1,17 @@
-import java.security.MessageDigest
-import java.util.zip.ZipInputStream
-
 plugins {
     kotlin("jvm") version "2.4.10"
     application
 }
+
+// Bump on every release: Windows only upgrades to a higher version, and the in-app updater compares it with the GitHub release tag.
+val appVersion = "1.0.7"
 
 application {
     mainClass.set("com.emprecio.soundpadplus.MainKt")
 }
 
 group = "com.emprecio"
-version = "1.0-SNAPSHOT"
+version = appVersion
 
 repositories {
     mavenCentral()
@@ -24,54 +24,17 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-val toolsDir = layout.projectDirectory.dir("tools").asFile
-val fetchTools = tasks.register("fetchTools") {
-    outputs.dir(toolsDir)
-    onlyIf { !File(toolsDir, "yt-dlp.exe").exists() || !File(toolsDir, "ffmpeg.exe").exists() }
-    doLast {
-        toolsDir.mkdirs()
-        fun fetch(url: String) = uri(url).toURL().openStream()
-        fun sha256(file: File) = MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
-        fun verified(file: File, expected: String) {
-            if (sha256(file) != expected.lowercase()) {
-                file.delete()
-                throw GradleException("SHA-256 mismatch for ${file.name}: refusing to use it")
-            }
-        }
-
-        val ytdlp = File(toolsDir, "yt-dlp.exe")
-        if (!ytdlp.exists()) {
-            val part = File(toolsDir, "yt-dlp.exe.part")
-            fetch("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe").use { i -> part.outputStream().use { i.copyTo(it) } }
-            val sums = fetch("https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS").use { it.readBytes().toString(Charsets.UTF_8) }
-            val expected = sums.lines().map { it.trim().split(Regex("\\s+")) }.first { it.getOrNull(1)?.removePrefix("*") == "yt-dlp.exe" }[0]
-            verified(part, expected)
-            part.renameTo(ytdlp)
-        }
-
-        val ffmpeg = File(toolsDir, "ffmpeg.exe")
-        if (!ffmpeg.exists()) {
-            val zip = File(toolsDir, "ffmpeg.zip.part")
-            val zipUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
-            fetch(zipUrl).use { i -> zip.outputStream().use { i.copyTo(it) } }
-            verified(zip, fetch("$zipUrl.sha256").use { it.readBytes().toString(Charsets.UTF_8) }.trim().split(Regex("\\s+"))[0])
-            ZipInputStream(zip.inputStream()).use { z ->
-                generateSequence { z.nextEntry }.first { it.name.endsWith("/bin/ffmpeg.exe") }
-                File(toolsDir, "ffmpeg.exe.part").outputStream().use { z.copyTo(it) }
-            }
-            File(toolsDir, "ffmpeg.exe.part").renameTo(ffmpeg)
-            zip.delete()
-        }
-    }
-}
-tasks.named<JavaExec>("run") { systemProperty("soundpadplus.tools", toolsDir.absolutePath) }
-tasks.named<Sync>("installDist") {
-    dependsOn(fetchTools)
-    from(toolsDir) { into("lib"); include("*.exe") }
+tasks.processResources {
+    inputs.property("version", appVersion)
+    filesMatching("version.properties") { expand("version" to appVersion) }
 }
 
-// jpackage bundles its own JRE. "exe" needs WiX 3 installed; "app-image" does not.
-val appVersion = "1.0.6" // bump on every release: Windows only upgrades to a higher version
+tasks.named<JavaExec>("run") {
+    systemProperty("soundpadplus.home", layout.projectDirectory.dir("run-data").asFile.absolutePath)
+}
+
+// jpackage bundles its own trimmed JRE. "exe" needs WiX 3 installed; "app-image" does not.
+// The installer is per-user (%LOCALAPPDATA%) so the app can write its settings, plugins and tools next to the exe without admin rights.
 fun jpackageTask(name: String, type: String) = tasks.register<Exec>(name) {
     dependsOn("installDist")
     val libs = layout.buildDirectory.dir("install/${project.name}/lib").get().asFile
@@ -82,8 +45,15 @@ fun jpackageTask(name: String, type: String) = tasks.register<Exec>(name) {
     commandLine(
         "jpackage", "--type", type, "--name", "SoundpadPlus", "--app-version", appVersion,
         "--input", libs, "--main-jar", "${project.name}-$version.jar", "--main-class", "com.emprecio.soundpadplus.MainKt",
+        "--add-modules", "java.desktop,java.logging,java.naming,java.management,java.net.http,jdk.crypto.ec,jdk.crypto.cryptoki,jdk.unsupported",
+        "--jlink-options", "--strip-native-commands --strip-debug --no-man-pages --no-header-files --compress zip-9",
         "--dest", dest
-    ).also { if (type == "exe") args("--win-menu", "--win-shortcut", "--win-dir-chooser", "--win-upgrade-uuid", "6f1d2c1e-8a3b-4c57-9d0e-5b7a2f4e9c10") }
+    ).also {
+        if (type == "exe") args(
+            "--win-menu", "--win-shortcut", "--win-dir-chooser", "--win-per-user-install",
+            "--win-upgrade-uuid", "6f1d2c1e-8a3b-4c57-9d0e-5b7a2f4e9c10"
+        )
+    }
 }
 jpackageTask("packageApp", "app-image")
 jpackageTask("packageInstaller", "exe")
@@ -93,9 +63,9 @@ kotlin {
 }
 
 tasks.test {
-    val testSettings = layout.buildDirectory.file("test-settings.properties").get().asFile
-    doFirst { testSettings.delete() }
-    systemProperty("soundpadplus.settings", testSettings.path)
+    val testHome = layout.buildDirectory.dir("test-home").get().asFile
+    doFirst { testHome.deleteRecursively() }
+    systemProperty("soundpadplus.home", testHome.path)
     dependsOn(":examples:example-source:jar")
     useJUnitPlatform()
 }

@@ -1,11 +1,14 @@
 package com.emprecio.soundpadplus
 
+import com.emprecio.soundpadplus.config.Settings
 import com.emprecio.soundpadplus.i18n.I18n
 import com.emprecio.soundpadplus.plugin.PluginLoader
 import com.emprecio.soundpadplus.ui.BG
 import com.emprecio.soundpadplus.ui.SURFACE
 import com.emprecio.soundpadplus.ui.TEXT
 import com.emprecio.soundpadplus.ui.buildMainPanel
+import com.emprecio.soundpadplus.ui.checkForUpdates
+import com.emprecio.soundpadplus.ui.installToolsIfMissing
 import com.formdev.flatlaf.FlatDarkLaf
 import com.formdev.flatlaf.FlatLaf
 import java.awt.*
@@ -24,13 +27,21 @@ fun main() {
             JOptionPane.showConfirmDialog(null, I18n.t("plugin.approve.text", jar.name, sha), I18n.t("plugin.approve.title"),
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION
         }
-        JFrame("SoundpadPlus").apply {
+        val frame = JFrame("SoundpadPlus")
+        fun showUi() {
+            frame.contentPane = buildMainPanel(frame, sources, ::showUi)
+            frame.revalidate()
+            frame.repaint()
+        }
+        frame.apply {
             defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-            contentPane = buildMainPanel(this, sources)
+            showUi()
             minimumSize = Dimension(680, 440)
             setSize(860, 580)
             setLocationRelativeTo(null)
             isVisible = true
         }
+        installToolsIfMissing(frame)
+        if (Settings["autoUpdate", "true"] == "true") checkForUpdates(frame, silent = true)
     }
 }

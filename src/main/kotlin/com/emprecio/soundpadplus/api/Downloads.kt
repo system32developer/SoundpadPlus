@@ -57,16 +57,19 @@ object Downloads {
             .replace(Regex("\\s+"), " ").trim().trim('.').take(120).ifEmpty { fallback }
     }
 
-    /**
-     * Downloads [url] into [dir] as `<title>.<ext>`, reporting progress, and returns the file.
-     * Fails (and removes the partial file) when the audio is larger than [maxBytes].
-     */
+    /** Downloads [url] into [dir] as `<title>.<ext>`, reporting progress, and returns the file. */
     fun fromUrl(
         url: String, title: String, progress: (Int) -> Unit, fallbackName: String = "audio",
         allowedHosts: Set<String>? = null, maxBytes: Long = MAX_AUDIO_BYTES
     ): File {
         val ext = url.substringBefore('?').substringAfterLast('.').lowercase().takeIf { it in extensions } ?: "mp3"
         val dest = File(dir, "${safeName(title, fallbackName)}.$ext")
+        saveTo(dest, url, progress, allowedHosts, maxBytes)
+        return dest
+    }
+
+    /** Saves [url] to [dest]. Fails (and removes the partial file) when it is larger than [maxBytes]. */
+    fun saveTo(dest: File, url: String, progress: (Int) -> Unit, allowedHosts: Set<String>? = null, maxBytes: Long = MAX_AUDIO_BYTES) {
         val connection = open(url, allowedHosts)
         val total = connection.contentLengthLong
         require(total <= maxBytes) { I18n.t("security.tooLarge") }
@@ -90,6 +93,5 @@ object Downloads {
             dest.delete()
             throw e
         }
-        return dest
     }
 }

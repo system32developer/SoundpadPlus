@@ -3,33 +3,57 @@
 Desktop app (Kotlin + Swing/FlatLaf) that searches audios on online sources, downloads them and adds them to
 [Soundpad](https://www.leppsoft.com/soundpad/) through its Remote Control API. Sources are plugins, so anyone can add one.
 
-## Requirements
+## Install
 
-- Windows 10/11 with **Soundpad running** (Remote Control enabled).
-- JDK 21 (Gradle downloads it automatically if missing).
-- `yt-dlp` and `ffmpeg` for the YouTube source. The packaged app **bundles both**; when running from source,
-  `gradlew fetchTools` downloads them into `tools/` and checks their SHA-256 against the published checksums
-  (or install them yourself: `winget install yt-dlp ffmpeg`). Lookup order: next to the app jar, `tools/`, WinGet folder, `PATH`.
+Download `SoundpadPlus-x.y.z.exe` from the [latest release](https://github.com/system32developer/SoundpadPlus/releases/latest)
+and run it. It installs per user (no admin rights) and the app updates itself from GitHub releases
+(Settings → General to turn it off, Help → Check for updates to check now).
 
-## Run and build
+Requirement: Windows 10/11 with **Soundpad running** (Remote Control enabled).
+
+On the first start the app downloads `yt-dlp` and `ffmpeg` (about 130 MB) into its `tools` folder and checks their SHA-256,
+which keeps the installer small.
+
+## Files next to the app
+
+Everything the app stores is in its own folder (right click the shortcut → *Open file location*):
+
+```
+SoundpadPlus/
+├── SoundpadPlus.exe
+├── settings.properties   categories, language, auto-update, approved plugin hashes
+├── plugins/              drop plugins here (see below)
+├── lang/                 drop extra languages here (see below)
+└── tools/                yt-dlp.exe and ffmpeg.exe, downloaded on first start
+```
+
+Downloaded audios go to `Music/SoundpadPlus`. When running from source the same files live in `run-data/`.
+
+## Build from source
+
+Requirements: JDK 21 (Gradle downloads it if missing).
 
 | Command | Result |
 |---|---|
-| `gradlew fetchTools` | Downloads and verifies `yt-dlp.exe` and `ffmpeg.exe` into `tools/` (~130 MB, once) |
-| `gradlew run` | Starts the app |
+| `gradlew run` | Starts the app (files in `run-data/`) |
 | `gradlew test` | Runs the tests (also builds the example plugin and loads it) |
-| `gradlew build` | Compiles and tests everything |
-| `gradlew packageApp` | Downloads the tools if needed, then builds a portable app with its own JRE in `build/dist/SoundpadPlus/` |
-| `gradlew packageInstaller` | `.exe` installer in `build/dist/` (needs [WiX 3](https://github.com/wixtoolset/wix3/releases): unzip `wix314-binaries.zip` into `%LOCALAPPDATA%\wix3`) |
+| `gradlew packageApp` | Portable app with its own JRE in `build/dist/SoundpadPlus/` |
+| `gradlew packageInstaller` | Per-user `.exe` installer in `build/dist/` (needs [WiX 3](https://github.com/wixtoolset/wix3/releases): unzip `wix314-binaries.zip` into `%LOCALAPPDATA%\wix3`) |
 
-The bundled `ffmpeg` is the GPL "essentials" build from gyan.dev: check its license terms before redistributing the installer.
-Bump `appVersion` in `build.gradle.kts` on every release: Windows only upgrades to a higher version.
+### Releasing a version
+
+1. Bump `appVersion` in `build.gradle.kts` (Windows only upgrades to a higher version, and the updater compares it with the tag).
+2. `gradlew packageInstaller`, then create the checksum file next to the installer:
+   `sha256sum SoundpadPlus-X.Y.Z.exe > SoundpadPlus-X.Y.Z.exe.sha256`.
+3. Publish a GitHub release tagged `vX.Y.Z` with **both** files attached
+   (`gh release create vX.Y.Z build/dist/SoundpadPlus-X.Y.Z.exe build/dist/SoundpadPlus-X.Y.Z.exe.sha256`).
+   Running apps find it, download the installer, verify the SHA-256 and offer to install it.
 
 ## Adding sources (plugin API)
 
 A source only has to **search** and say **where each audio is**. The app handles the UI, the Soundpad category,
-adding the sound, playing it and removing it. There are two kinds of plugin, both dropped in
-`%USERPROFILE%\.soundpadplus\plugins\` (restart the app afterwards).
+adding the sound, playing it and removing it. There are two kinds of plugin, both dropped in the `plugins` folder
+next to the app (restart the app afterwards).
 
 | | JSON plugin (recommended) | Jar plugin |
 |---|---|---|
@@ -80,8 +104,8 @@ class MySource : AudioSource {
 
 - `Entry.download` must save the audio and return the `File`. Report progress with `progress(0..100)`, or `progress(-1)` if unknown.
   Use `Downloads.dir` and `Downloads.safeName(...)` for files (Soundpad only understands ANSI paths).
-- Always use `Downloads.open / readText / fromUrl` for network access: they enforce HTTPS, block private/loopback
-  addresses, check every redirect and cap sizes (2 MB text, 100 MB audio).
+- Use `Downloads.open / readText / fromUrl` for network access: they only allow HTTPS, block private and local addresses,
+  check every redirect and cap sizes (2 MB text, 100 MB audio).
 - Throw an exception with a readable message to show an error in the status bar.
 - Gson and JLayer are on the classpath.
 
@@ -91,30 +115,12 @@ Packaging:
    outside this repo use `compileOnly(files("path/to/SoundpadPlus.jar"))`).
 2. Register the class in `src/main/resources/META-INF/services/com.emprecio.soundpadplus.api.AudioSource`
    (one fully qualified class name per line). It needs a public no-argument constructor.
-3. Build the jar and copy it to the plugins folder. On first start the app shows the file name and its SHA-256 and asks
+3. Build the jar and copy it to the `plugins` folder. On first start the app shows the file name and its SHA-256 and asks
    for permission. The approval is stored for that exact file: any change to the jar asks again.
 
 A plugin with an id already in use, or one that fails to load, is skipped and the reason is printed to stderr.
-The packaged app ships a trimmed JRE: if your plugin needs extra JDK modules, add them with `--add-modules` in the `jpackage` call.
-
-## Security
-
-What the app does to keep plugins, the network and Soundpad safe:
-
-- **No silent code execution**: jar plugins never load without the user's approval of their exact hash, and the approved
-  file is copied before hashing so it cannot be swapped in between. JSON plugins are data, not code.
-- **Network**: every request (built-in sources and plugins) is HTTPS only, rejects credentials in URLs and private,
-  loopback, link-local and multicast addresses (no access to the local network), re-checks each redirect and has size and time limits.
-- **Text from sources is never trusted**: titles, errors and names are stripped of control characters and HTML before
-  being shown (Swing would otherwise render `<html>` and load remote images).
-- **Soundpad pipe**: category names cannot contain quotes, backslashes or control characters, so they cannot add extra commands.
-- **Tools**: `yt-dlp` is called with `--` before the URL and a validated video id; executables are only taken from the app folder,
-  `tools/`, WinGet or the `PATH` as absolute paths (never from the current directory). Downloads of the bundled tools are checked against the published SHA-256.
-
-Limits you should know about: a **jar plugin cannot be sandboxed** on the JVM (the SecurityManager is gone), so once approved it has
-the user's full permissions: approve only code you trust. The SHA-256 of `yt-dlp`/`ffmpeg` is fetched from the same site as the file,
-which detects corruption and tampering of the file but not a compromised release. Resolved DNS addresses are checked before connecting,
-not pinned, so a hostile DNS server could still race the check.
+The packaged app ships a trimmed JRE (desktop, logging, naming, management, net.http, crypto): if your plugin needs other
+JDK modules, add them to `--add-modules` in `build.gradle.kts`.
 
 ## Languages
 
@@ -122,11 +128,12 @@ Texts live in `src/main/resources/i18n/<code>.properties` (UTF-8, `{0}`, `{1}`�
 missing keys. To add a language, copy `en.properties`, translate the values and set `language.name`. Either:
 
 - put it in `src/main/resources/i18n/` and add its code to `bundled` in `I18n.kt`; or
-- (for users) drop it in `%USERPROFILE%\.soundpadplus\lang\<code>.properties`; no rebuild needed.
+- (for users) drop it in the `lang` folder next to the app as `<code>.properties`; no rebuild needed.
 
-The language is chosen in Settings → General (default: system language) and applies on next start.
+The language is chosen in Settings → General (default: system language) and changes immediately.
 A test checks that every bundled language has the same keys as English.
 
-## Settings
+## License
 
-Stored in `~/.soundpadplus.properties`: `cat.<source id>` (destination category), `deleteFile`, `language`, `approvedPlugins` (hashes).
+[MIT](LICENSE). `yt-dlp` (Unlicense) and `ffmpeg` (GPL build from gyan.dev) are downloaded by the app on first start,
+not distributed with it, and keep their own licenses.

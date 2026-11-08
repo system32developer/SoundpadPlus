@@ -15,7 +15,7 @@ import javax.swing.border.EmptyBorder
 
 enum class Mode { ADD, PLAY, PLAY_DELETE }
 
-fun buildMainPanel(frame: JFrame, sources: List<AudioSource>): JPanel {
+fun buildMainPanel(frame: JFrame, sources: List<AudioSource>, onLanguageChanged: () -> Unit): JPanel {
     var current = sources[0]
     var shown = emptyList<Entry>()
     var downloading = false
@@ -165,7 +165,7 @@ fun buildMainPanel(frame: JFrame, sources: List<AudioSource>): JPanel {
         }
     }
 
-    fun settings() = showPreferences(frame, sources) { refresh() }
+    fun settings() = showPreferences(frame, sources) { languageChanged -> if (languageChanged) onLanguageChanged() else refresh() }
 
     val debounce = Timer(400) { search() }.apply { isRepeats = false }
     query.document.addDocumentListener(object : javax.swing.event.DocumentListener {
@@ -207,6 +207,7 @@ fun buildMainPanel(frame: JFrame, sources: List<AudioSource>): JPanel {
             add(item(I18n.t("menu.play.preview")) { preview() }); add(item(I18n.t("menu.play.stopPreview"), "ESCAPE") { Preview.stop() })
         })
         add(JMenu(I18n.t("menu.help")).apply {
+            add(item(I18n.t("menu.help.update")) { checkForUpdates(frame, silent = false) })
             add(item(I18n.t("menu.help.about")) { JOptionPane.showMessageDialog(frame, I18n.t("about.text"), I18n.t("about.title"), JOptionPane.INFORMATION_MESSAGE) })
         })
     }

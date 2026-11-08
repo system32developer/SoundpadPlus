@@ -4,7 +4,9 @@ import com.emprecio.soundpadplus.api.Entry
 import com.emprecio.soundpadplus.config.cleanCategory
 import com.emprecio.soundpadplus.plugin.JsonSource
 import com.emprecio.soundpadplus.plugin.PluginLoader
+import com.emprecio.soundpadplus.security.Checksums
 import com.emprecio.soundpadplus.security.UrlGuard
+import com.emprecio.soundpadplus.update.Updater
 import com.emprecio.soundpadplus.util.plain
 import java.io.File
 import java.net.URI
@@ -67,4 +69,19 @@ class PluginAndI18nTest {
 
     @Test
     fun categoryNamesCannotInjectSoundpadCommands() = assertEquals("a, -1) DoRemove", cleanCategory("a\", -1)\\ DoRemove\n\""))
+
+    @Test
+    fun versionsAreComparedNumerically() {
+        assertTrue(Updater.isNewer("1.0.10", "1.0.9"))
+        assertTrue(Updater.isNewer("1.1", "1.0.9"))
+        assertFalse(Updater.isNewer("1.0.7", "1.0.7"))
+        assertFalse(Updater.isNewer("1.0.6", "1.0.7"))
+    }
+
+    @Test
+    fun checksumListingsAreParsed() {
+        val hash = "a".repeat(64)
+        assertEquals(hash, Checksums.parse("$hash  yt-dlp.exe\n${"b".repeat(64)} *other.exe", "yt-dlp.exe"))
+        assertEquals(hash, Checksums.parse(hash))
+    }
 }

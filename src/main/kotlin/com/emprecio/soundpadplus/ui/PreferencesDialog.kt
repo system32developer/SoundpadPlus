@@ -11,7 +11,7 @@ import java.awt.*
 import javax.swing.*
 import javax.swing.border.EmptyBorder
 
-fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: () -> Unit) {
+fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: (languageChanged: Boolean) -> Unit) {
     val combos = sources.associateWith { s ->
         JComboBox(arrayOf(s.category)).apply { isEditable = true; selectedItem = s.category }
     }
@@ -25,6 +25,7 @@ fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: () -> Uni
         }
     }
     val deleteFile = JCheckBox(I18n.t("settings.deleteFile"), Settings["deleteFile", "true"] == "true")
+    val autoUpdate = JCheckBox(I18n.t("settings.autoUpdate"), Settings["autoUpdate", "true"] == "true")
     val languages = I18n.available
     val language = JComboBox(languages.values.toTypedArray()).apply { selectedItem = languages[I18n.language] }
 
@@ -45,7 +46,7 @@ fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: () -> Uni
         border = EmptyBorder(12, 12, 12, 12)
         add(deleteFile)
         add(JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply { add(JLabel(I18n.t("settings.language"))); add(language) })
-        add(JLabel(I18n.t("settings.restart")).apply { foreground = MUTED })
+        add(autoUpdate)
     }
     val tabs = JTabbedPane().apply { addTab(I18n.t("settings.tab.categories"), cats); addTab(I18n.t("settings.tab.general"), general) }
 
@@ -54,8 +55,12 @@ fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: () -> Uni
         addActionListener {
             sources.forEach { it.category = combos.getValue(it).selectedItem?.toString() ?: "" }
             Settings["deleteFile"] = deleteFile.isSelected.toString()
-            languages.entries.firstOrNull { it.value == language.selectedItem }?.let { Settings["language"] = it.key }
-            Settings.save(); onSaved(); dlg.dispose()
+            Settings["autoUpdate"] = autoUpdate.isSelected.toString()
+            Settings.save()
+            val before = I18n.language
+            languages.entries.firstOrNull { it.value == language.selectedItem }?.let { I18n.select(it.key) }
+            dlg.dispose()
+            onSaved(I18n.language != before)
         }
     }
     val cancel = button(I18n.t("btn.cancel")).apply { addActionListener { dlg.dispose() } }

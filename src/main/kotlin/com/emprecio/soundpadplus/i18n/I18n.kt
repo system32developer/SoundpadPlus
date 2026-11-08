@@ -9,7 +9,7 @@ import java.util.Properties
 
 /**
  * Translations live in `<code>.properties` files (UTF-8). Built-in ones are bundled in `/i18n/`;
- * extra languages can be dropped in `~/.soundpadplus/lang/<code>.properties` and override the built-in ones.
+ * extra languages can be dropped in the `lang` folder next to the app and override the built-in ones.
  * Missing keys fall back to English, and then to the key itself.
  */
 object I18n {
@@ -31,11 +31,22 @@ object I18n {
         (bundled + external).distinct().associateWith { load(it).getProperty("language.name", it) }
     }
 
-    /** Code of the language in use: the saved one, else the system language, else English. */
-    val language: String = (Settings["language", Locale.getDefault().language]).takeIf { it in available } ?: FALLBACK
-
     private val english = load(FALLBACK)
-    private val current = if (language == FALLBACK) english else load(language)
+
+    /** Code of the language in use: the saved one, else the system language, else English. */
+    var language: String = Settings["language", Locale.getDefault().language].takeIf { it in available } ?: FALLBACK
+        private set
+
+    private var current = if (language == FALLBACK) english else load(language)
+
+    /** Switches language immediately and remembers it. The caller rebuilds the UI. */
+    fun select(code: String) {
+        if (code !in available || code == language) return
+        language = code
+        current = if (code == FALLBACK) english else load(code)
+        Settings["language"] = code
+        Settings.save()
+    }
 
     /** Translated text for [key]; `{0}`, `{1}`… are replaced by [args]. */
     fun t(key: String, vararg args: Any): String {
