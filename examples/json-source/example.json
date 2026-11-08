@@ -1,0 +1,10 @@
+{
+  "id": "example-json",
+  "name": "Example (JSON)",
+  "defaultCategory": "Examples",
+  "searchHint": "Search the example API…",
+  "hosts": ["api.example.com", "cdn.example.com"],
+  "searchUrl": "https://api.example.com/search?q={query}",
+  "resultsPath": "data.items",
+  "fields": { "title": "name", "subtitle": "tags", "duration": "length", "audioUrl": "files.mp3" }
+}
