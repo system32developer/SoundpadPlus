@@ -3,6 +3,10 @@
 Desktop app (Kotlin + Swing/FlatLaf) that searches audios on online sources, downloads them and adds them to
 [Soundpad](https://www.leppsoft.com/soundpad/) through its Remote Control API. Sources are plugins, so anyone can add one.
 
+![Main window](docs/screenshots/main.png)
+
+![Settings](docs/screenshots/settings.png)
+
 ## Install
 
 Download `SoundpadPlus-x.y.z.exe` from the [latest release](https://github.com/system32developer/SoundpadPlus/releases/latest)
