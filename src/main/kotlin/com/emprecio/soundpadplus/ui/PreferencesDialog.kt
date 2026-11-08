@@ -1,6 +1,7 @@
 package com.emprecio.soundpadplus.ui
 
 import com.emprecio.soundpadplus.api.AudioSource
+import com.emprecio.soundpadplus.config.AppPaths
 import com.emprecio.soundpadplus.config.Settings
 import com.emprecio.soundpadplus.config.category
 import com.emprecio.soundpadplus.i18n.I18n
@@ -47,6 +48,9 @@ fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: (language
         add(deleteFile)
         add(JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply { add(JLabel(I18n.t("settings.language"))); add(language) })
         add(autoUpdate)
+        add(JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+            add(button(I18n.t("settings.openFolder")).apply { addActionListener { runCatching { Desktop.getDesktop().open(AppPaths.home) } } })
+        })
     }
     val tabs = JTabbedPane().apply { addTab(I18n.t("settings.tab.categories"), cats); addTab(I18n.t("settings.tab.general"), general) }
 

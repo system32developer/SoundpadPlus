@@ -6,6 +6,7 @@ import com.emprecio.soundpadplus.api.AudioSource
 import com.emprecio.soundpadplus.api.Entry
 import com.emprecio.soundpadplus.config.category
 import com.emprecio.soundpadplus.i18n.I18n
+import com.emprecio.soundpadplus.update.BuildInfo
 import com.emprecio.soundpadplus.util.plain
 import com.emprecio.soundpadplus.soundpad.Soundpad
 import com.emprecio.soundpadplus.util.async
@@ -208,7 +209,7 @@ fun buildMainPanel(frame: JFrame, sources: List<AudioSource>, onLanguageChanged:
         })
         add(JMenu(I18n.t("menu.help")).apply {
             add(item(I18n.t("menu.help.update")) { checkForUpdates(frame, silent = false) })
-            add(item(I18n.t("menu.help.about")) { JOptionPane.showMessageDialog(frame, I18n.t("about.text"), I18n.t("about.title"), JOptionPane.INFORMATION_MESSAGE) })
+            add(item(I18n.t("menu.help.about")) { JOptionPane.showMessageDialog(frame, I18n.t("about.text", BuildInfo.version), I18n.t("about.title"), JOptionPane.INFORMATION_MESSAGE) })
         })
     }
 

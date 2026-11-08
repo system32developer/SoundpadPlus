@@ -4,7 +4,7 @@ plugins {
 }
 
 // Bump on every release: Windows only upgrades to a higher version, and the in-app updater compares it with the GitHub release tag.
-val appVersion = "1.0.7"
+val appVersion = "1.0.8"
 
 application {
     mainClass.set("com.emprecio.soundpadplus.MainKt")
