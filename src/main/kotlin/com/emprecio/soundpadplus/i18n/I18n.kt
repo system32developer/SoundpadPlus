@@ -16,6 +16,15 @@ object I18n {
     private const val FALLBACK = "en"
     private val bundled = listOf("en", "es")
 
+    init {
+        bundled.forEach { code ->
+            val target = File(AppPaths.languages, "$code.properties")
+            if (!target.exists()) runCatching {
+                I18n::class.java.getResourceAsStream("/i18n/$code.properties")?.use { target.outputStream().use(it::copyTo) }
+            }
+        }
+    }
+
     private fun load(code: String): Properties {
         val props = Properties()
         runCatching {

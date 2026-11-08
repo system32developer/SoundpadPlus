@@ -23,7 +23,7 @@ SoundpadPlus/
 ├── SoundpadPlus.exe
 ├── settings.properties   categories, language, auto-update, approved plugin hashes
 ├── plugins/              drop plugins here (see below)
-├── lang/                 drop extra languages here (see below)
+├── lang/                 en.properties and es.properties (editable), plus any language you add
 └── tools/                yt-dlp.exe and ffmpeg.exe, downloaded on first start
 ```
 
@@ -129,6 +129,9 @@ missing keys. To add a language, copy `en.properties`, translate the values and 
 
 - put it in `src/main/resources/i18n/` and add its code to `bundled` in `I18n.kt`; or
 - (for users) drop it in the `lang` folder next to the app as `<code>.properties`; no rebuild needed.
+
+The app copies `en.properties` and `es.properties` into the `lang` folder on first start, ready to edit or copy as a template.
+A file there overrides the bundled text key by key, so keys you remove still fall back to the built-in ones.
 
 The language is chosen in Settings → General (default: system language) and changes immediately.
 A test checks that every bundled language has the same keys as English.
