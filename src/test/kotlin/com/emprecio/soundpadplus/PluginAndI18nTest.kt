@@ -4,7 +4,9 @@ import com.emprecio.soundpadplus.api.Dependency
 import com.emprecio.soundpadplus.api.Entry
 import com.emprecio.soundpadplus.config.cleanCategory
 import com.emprecio.soundpadplus.plugin.JsonSource
+import com.emprecio.soundpadplus.config.enabled
 import com.emprecio.soundpadplus.plugin.PluginLoader
+import com.emprecio.soundpadplus.plugin.PluginManager
 import com.emprecio.soundpadplus.security.Checksums
 import com.emprecio.soundpadplus.security.UrlGuard
 import com.emprecio.soundpadplus.update.Updater
@@ -46,6 +48,33 @@ class PluginAndI18nTest {
         val sources = PluginLoader.load(dir)
         assertEquals(listOf("YouTube", "MyInstants"), sources.map { it.id })
         assertEquals(listOf("yt-dlp.exe", "ffmpeg.exe"), sources.first().dependencies.map { it.fileName })
+    }
+
+    @Test
+    fun pluginManagerPicksUpAddedAndRemovedPlugins() {
+        val dir = Files.createTempDirectory("plugins").toFile()
+        val manager = PluginManager(dir)
+        assertTrue(manager.reload())
+        assertFalse(manager.reload(), "nothing changed")
+        File(dir, "added.json").writeText(validJson)
+        assertTrue(manager.reload())
+        assertTrue("example-json" in manager.all.map { it.id })
+        File(dir, "added.json").delete()
+        assertTrue(manager.reload())
+        assertFalse("example-json" in manager.all.map { it.id })
+    }
+
+    @Test
+    fun disabledPluginsLeaveTheEnabledList() {
+        val manager = PluginManager(Files.createTempDirectory("plugins").toFile()).also { it.reload() }
+        val source = manager.all.first { it.id == "MyInstants" }
+        source.enabled = false
+        try {
+            assertFalse(source in manager.enabled)
+            assertTrue(source in manager.all)
+        } finally {
+            source.enabled = true
+        }
     }
 
     @Test

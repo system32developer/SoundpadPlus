@@ -4,6 +4,8 @@ import com.emprecio.soundpadplus.api.AudioSource
 import com.emprecio.soundpadplus.config.AppPaths
 import com.emprecio.soundpadplus.config.Settings
 import com.emprecio.soundpadplus.config.category
+import com.emprecio.soundpadplus.config.enabled
+import com.emprecio.soundpadplus.plugin.PluginManager
 import com.emprecio.soundpadplus.i18n.I18n
 import com.emprecio.soundpadplus.util.plain
 import com.emprecio.soundpadplus.soundpad.Soundpad
@@ -12,7 +14,9 @@ import java.awt.*
 import javax.swing.*
 import javax.swing.border.EmptyBorder
 
-fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: (languageChanged: Boolean) -> Unit) {
+/** [onSaved] gets true when the window must be redrawn (the language or the enabled plugins changed). */
+fun showPreferences(owner: Frame, manager: PluginManager, onSaved: (rebuild: Boolean) -> Unit) {
+    val sources = manager.enabled
     val combos = sources.associateWith { s ->
         JComboBox(arrayOf(s.category)).apply { isEditable = true; selectedItem = s.category }
     }
@@ -52,11 +56,29 @@ fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: (language
             add(button(I18n.t("settings.openFolder")).apply { addActionListener { runCatching { Desktop.getDesktop().open(AppPaths.home) } } })
         })
     }
-    val tabs = JTabbedPane().apply { addTab(I18n.t("settings.tab.categories"), cats); addTab(I18n.t("settings.tab.general"), general) }
+    val toggles = manager.all.associateWith { JCheckBox(plain(it.name), it.enabled).apply { toolTipText = plain(it.id) } }
+    val plugins = JPanel(GridBagLayout()).apply {
+        border = EmptyBorder(12, 12, 12, 12)
+        val c = GridBagConstraints().apply { anchor = GridBagConstraints.WEST; insets = Insets(4, 4, 4, 4); gridx = 0; weightx = 1.0 }
+        add(JLabel("<html><b>${I18n.t("settings.tab.plugins")}</b><br><span style='color:#8C8C8C'>${I18n.t("settings.plugins.help")}</span></html>"), c)
+        toggles.values.forEach { add(it, c) }
+        c.weighty = 1.0; add(JPanel().apply { isOpaque = false }, c)
+    }
+    val tabs = JTabbedPane().apply {
+        addTab(I18n.t("settings.tab.categories"), cats)
+        addTab(I18n.t("settings.tab.plugins"), JScrollPane(plugins).apply { border = BorderFactory.createEmptyBorder() })
+        addTab(I18n.t("settings.tab.general"), general)
+    }
 
     val dlg = JDialog(owner, I18n.t("settings.title"), true)
     val ok = button(I18n.t("btn.ok"), true).apply {
         addActionListener {
+            if (toggles.values.none { it.isSelected }) {
+                JOptionPane.showMessageDialog(dlg, I18n.t("settings.plugins.needOne"), I18n.t("settings.title"), JOptionPane.WARNING_MESSAGE)
+                return@addActionListener
+            }
+            val enabledBefore = manager.enabled.map { it.id }
+            toggles.forEach { (source, box) -> source.enabled = box.isSelected }
             sources.forEach { it.category = combos.getValue(it).selectedItem?.toString() ?: "" }
             Settings["deleteFile"] = deleteFile.isSelected.toString()
             Settings["autoUpdate"] = autoUpdate.isSelected.toString()
@@ -64,7 +86,7 @@ fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: (language
             val before = I18n.language
             languages.entries.firstOrNull { it.value == language.selectedItem }?.let { I18n.select(it.key) }
             dlg.dispose()
-            onSaved(I18n.language != before)
+            onSaved(I18n.language != before || manager.enabled.map { it.id } != enabledBefore)
         }
     }
     val cancel = button(I18n.t("btn.cancel")).apply { addActionListener { dlg.dispose() } }
@@ -74,7 +96,7 @@ fun showPreferences(owner: Frame, sources: List<AudioSource>, onSaved: (language
         add(JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply { add(ok); add(cancel) }, BorderLayout.SOUTH)
     }
     dlg.rootPane.defaultButton = ok
-    dlg.setSize(520, 300)
+    dlg.setSize(520, 340)
     dlg.setLocationRelativeTo(owner)
     dlg.isVisible = true
 }

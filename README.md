@@ -19,6 +19,9 @@ YouTube and MyInstants are plugins like any other: they ship inside the app and 
 The YouTube plugin asks the app to download `yt-dlp` and `ffmpeg` (about 130 MB) into the `tools` folder on the first start,
 checking their SHA-256, which keeps the installer small. Updating keeps your settings, plugins, languages and tools.
 
+Plugins are reloaded live: add, remove or edit a file in `plugins` and the source list updates by itself (a new jar still asks for
+your approval). Settings → Plugins switches any plugin off without deleting it; the bundled ones come back if you delete them.
+
 ## Files next to the app
 
 Everything the app stores is in its own folder (right click the shortcut → *Open file location*):

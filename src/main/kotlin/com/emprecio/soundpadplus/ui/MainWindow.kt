@@ -6,6 +6,7 @@ import com.emprecio.soundpadplus.api.AudioSource
 import com.emprecio.soundpadplus.api.Entry
 import com.emprecio.soundpadplus.config.category
 import com.emprecio.soundpadplus.i18n.I18n
+import com.emprecio.soundpadplus.plugin.PluginManager
 import com.emprecio.soundpadplus.update.BuildInfo
 import com.emprecio.soundpadplus.util.plain
 import com.emprecio.soundpadplus.soundpad.Soundpad
@@ -16,8 +17,9 @@ import javax.swing.border.EmptyBorder
 
 enum class Mode { ADD, PLAY, PLAY_DELETE }
 
-fun buildMainPanel(frame: JFrame, sources: List<AudioSource>, onLanguageChanged: () -> Unit): JPanel {
-    var current = sources[0]
+fun buildMainPanel(frame: JFrame, manager: PluginManager, onRebuild: () -> Unit): JPanel {
+    val sources = manager.enabled
+    var current = sources.firstOrNull { it.id == manager.selectedId } ?: sources[0]
     var shown = emptyList<Entry>()
     var downloading = false
     var searchId = 0
@@ -39,7 +41,7 @@ fun buildMainPanel(frame: JFrame, sources: List<AudioSource>, onLanguageChanged:
 
     val sourceModel = DefaultListModel<AudioSource>().apply { addAll(sources) }
     val sourceList = JList(sourceModel).apply {
-        background = PANEL; selectedIndex = 0; fixedCellHeight = 36
+        background = PANEL; selectedIndex = sources.indexOf(current); fixedCellHeight = 36
         cellRenderer = ListCellRenderer { l, s, _, sel, _ ->
             JPanel(BorderLayout(8, 0)).apply {
                 background = if (sel) SELECTED else PANEL; border = EmptyBorder(4, 8, 4, 8)
@@ -166,7 +168,7 @@ fun buildMainPanel(frame: JFrame, sources: List<AudioSource>, onLanguageChanged:
         }
     }
 
-    fun settings() = showPreferences(frame, sources) { languageChanged -> if (languageChanged) onLanguageChanged() else refresh() }
+    fun settings() = showPreferences(frame, manager) { rebuild -> if (rebuild) onRebuild() else refresh() }
 
     val debounce = Timer(400) { search() }.apply { isRepeats = false }
     query.document.addDocumentListener(object : javax.swing.event.DocumentListener {
@@ -184,7 +186,7 @@ fun buildMainPanel(frame: JFrame, sources: List<AudioSource>, onLanguageChanged:
     wrench.addActionListener { settings() }
     sourceList.addListSelectionListener {
         if (it.valueIsAdjusting || sourceList.selectedValue == null || sourceList.selectedValue === current) return@addListSelectionListener
-        Preview.stop(); current = sourceList.selectedValue; search()
+        Preview.stop(); current = sourceList.selectedValue; manager.selectedId = current.id; search()
     }
     table.selectionModel.addListSelectionListener { Preview.stop(); refresh() }
     table.addMouseListener(object : java.awt.event.MouseAdapter() {
