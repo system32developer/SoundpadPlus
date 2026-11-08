@@ -19,7 +19,8 @@ import java.net.URLEncoder
  *   "hosts": ["api.example.com", "cdn.example.com"],
  *   "searchUrl": "https://api.example.com/search?q={query}",
  *   "resultsPath": "data.items",
- * ("audioBase": "https://cdn.example.com/media/" is optional and goes in front of the audioUrl value)
+ * ("audioBase": "https://cdn.example.com/media/" is optional and goes in front of the audioUrl value;
+ *  "headers": {"Name": "value"} is optional and is sent only with the search request)
  *   "fields": { "title": "name", "subtitle": "tags", "duration": "length", "audioUrl": "files.mp3" }
  * }
  * ```
@@ -33,12 +34,13 @@ class JsonSource private constructor(
     private val searchUrl: String,
     private val resultsPath: String,
     private val audioBase: String,
-    private val fields: Map<String, String>
+    private val fields: Map<String, String>,
+    private val headers: Map<String, String>
 ) : AudioSource {
 
     override fun search(query: String): List<Entry> {
         val url = searchUrl.replace("{query}", URLEncoder.encode(query, Charsets.UTF_8))
-        val results = JsonParser.parseString(Downloads.readText(url, hosts)).at(resultsPath) as? JsonArray
+        val results = JsonParser.parseString(Downloads.readText(url, hosts, headers = headers)).at(resultsPath) as? JsonArray
             ?: error("The answer has no list at '$resultsPath'")
         return results.take(MAX_RESULTS).mapNotNull { item ->
             val title = item.at(fields.getValue("title")).text().ifEmpty { return@mapNotNull null }
@@ -57,6 +59,8 @@ class JsonSource private constructor(
         private val ID = Regex("[A-Za-z0-9._-]{1,40}")
         private val HOST = Regex("[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+")
         private val PATH = Regex("[A-Za-z0-9_.-]*")
+        private val HEADER_NAME = Regex("[A-Za-z0-9-]{1,40}")
+        private val HEADER_VALUE = Regex("[A-Za-z0-9 ._/;:=,()-]{0,100}")
 
         private fun allowed(url: String, hosts: Set<String>): Boolean {
             val uri = runCatching { URI(url) }.getOrNull() ?: return false
@@ -91,7 +95,12 @@ class JsonSource private constructor(
             require("title" in fields && "audioUrl" in fields) { "fields.title and fields.audioUrl are required" }
             val audioBase = o.get("audioBase")?.asString.orEmpty()
             require(audioBase.isEmpty() || allowed(audioBase, hosts)) { "'audioBase' must be an https URL on a declared host" }
-            return JsonSource(id, str("name").take(40), str("defaultCategory").take(60), o.get("searchHint")?.asString.orEmpty().take(120), hosts, searchUrl, resultsPath, audioBase, fields)
+            val headers = o.getAsJsonObject("headers")?.entrySet()?.associate { (k, v) ->
+                val value = v.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+                require(HEADER_NAME.matches(k) && HEADER_VALUE.matches(value)) { "Invalid header '$k'" }
+                k to value
+            }.orEmpty()
+            return JsonSource(id, str("name").take(40), str("defaultCategory").take(60), o.get("searchHint")?.asString.orEmpty().take(120), hosts, searchUrl, resultsPath, audioBase, fields, headers)
         }
     }
 }

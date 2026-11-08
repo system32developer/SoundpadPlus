@@ -1,0 +1,11 @@
+{
+  "id": "tuna",
+  "name": "Tuna (Voicemod)",
+  "defaultCategory": "Efectos",
+  "searchHint": "Search Voicemod Tuna (double click to listen)…",
+  "hosts": ["tuna-api.voicemod.net", "us-tuna-sounds-files.voicemod.net"],
+  "searchUrl": "https://tuna-api.voicemod.net/v2/sounds?text={query}&audio-format=mp3&custom=true&published=true&sort=-trending&size=50",
+  "headers": { "app-name": "tuna", "app-version": "8.42.0", "app-os": "web" },
+  "resultsPath": "items",
+  "fields": { "title": "name", "subtitle": "publicInfo.ownerName", "audioUrl": "audio.url" }
+}

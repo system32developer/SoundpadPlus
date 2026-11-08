@@ -49,3 +49,5 @@ tools/
 .kotlin/
 .idea/
 run-data/
+
+.claude/settings.local.json

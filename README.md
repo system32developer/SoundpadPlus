@@ -88,6 +88,8 @@ Use it when the source has a JSON API that returns direct links to audio files. 
   (`title` and `audioUrl` are required). Up to 50 results are used.
 - Preview (double click) is offered for `.mp3` links.
 - `audioBase` (optional): text put in front of the `audioUrl` value, for APIs that return relative paths. It must be an https URL on a declared host.
+- `headers` (optional): extra request headers (letters, digits and basic punctuation only), sent only with the search request.
+- Real example: `examples/json-source/tuna.json` adds Voicemod's Tuna (uses `headers`).
 - Real example: `examples/json-source/memesoundboard.json` adds [memesoundboard.org](https://memesoundboard.org/); copy it to the `plugins` folder and restart.
 
 ### Jar plugin

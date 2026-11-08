@@ -40,6 +40,14 @@ class PluginAndI18nTest {
     fun jsonSourceAcceptsTheExample() = assertEquals("example-json", JsonSource.parse(validJson).id)
 
     @Test
+    fun tunaPluginParses() = assertEquals("tuna", JsonSource.parse(File("examples/json-source/tuna.json").readText()).id)
+
+    @Test
+    fun jsonSourceRejectsBadHeaders() = assertFailsWith<IllegalArgumentException> {
+        JsonSource.parse(validJson.replace("\"resultsPath\"", "\"headers\": {\"X\": \"a\\r\\nb: c\"}, \"resultsPath\""))
+    }
+
+    @Test
     fun memeSoundboardPluginParses() = assertEquals("memesoundboard", JsonSource.parse(File("examples/json-source/memesoundboard.json").readText()).id)
 
     @Test

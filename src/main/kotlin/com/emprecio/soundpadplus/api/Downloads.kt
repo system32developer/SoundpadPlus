@@ -24,13 +24,15 @@ object Downloads {
      * Opens [url]. Redirects are followed by hand so each hop is checked again.
      * [allowedHosts], when given, restricts the first URL to those hosts (and their subdomains).
      */
-    fun open(url: String, allowedHosts: Set<String>? = null): HttpURLConnection {
+    fun open(url: String, allowedHosts: Set<String>? = null, headers: Map<String, String> = emptyMap()): HttpURLConnection {
         var target = URI(url.replace(" ", "%20"))
         repeat(MAX_REDIRECTS + 1) { hop ->
             UrlGuard.check(target, if (hop == 0) allowedHosts else null)
             val connection = (target.toURL().openConnection() as HttpURLConnection).apply {
                 instanceFollowRedirects = false
                 setRequestProperty("User-Agent", "SoundpadPlus/1.0")
+                // Only the first hop: never forward custom headers to a redirect target.
+                if (hop == 0) headers.forEach { (k, v) -> setRequestProperty(k, v) }
                 connectTimeout = 10_000
                 readTimeout = 20_000
             }
@@ -43,8 +45,8 @@ object Downloads {
     }
 
     /** Reads a text response (JSON, HTML…), failing if it is larger than [maxBytes]. */
-    fun readText(url: String, allowedHosts: Set<String>? = null, maxBytes: Long = MAX_TEXT_BYTES): String =
-        open(url, allowedHosts).inputStream.use { input ->
+    fun readText(url: String, allowedHosts: Set<String>? = null, maxBytes: Long = MAX_TEXT_BYTES, headers: Map<String, String> = emptyMap()): String =
+        open(url, allowedHosts, headers).inputStream.use { input ->
             val bytes = input.readNBytes(maxBytes.toInt() + 1)
             require(bytes.size <= maxBytes) { I18n.t("security.tooLarge") }
             bytes.toString(Charsets.UTF_8)
