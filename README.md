@@ -42,7 +42,7 @@ Requirements: JDK 21 (Gradle downloads it if missing).
 | `gradlew run` | Starts the app (files in `run-data/`) |
 | `gradlew test` | Runs the tests (also builds the example plugin and loads it) |
 | `gradlew packageApp` | Portable app with its own JRE in `build/dist/SoundpadPlus/` |
-| `gradlew packageInstaller` | Per-user `.exe` installer in `build/dist/` (needs [WiX 3](https://github.com/wixtoolset/wix3/releases): unzip `wix314-binaries.zip` into `%LOCALAPPDATA%\wix3`) |
+| `gradlew packageInstaller` | Per-user `.exe` installer in `build/dist/` (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php); language choice and an "open the program" checkbox; replaces the old MSI install) |
 
 ### Releasing a version
 

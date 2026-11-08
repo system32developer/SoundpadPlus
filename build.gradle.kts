@@ -33,30 +33,33 @@ tasks.named<JavaExec>("run") {
     systemProperty("soundpadplus.home", layout.projectDirectory.dir("run-data").asFile.absolutePath)
 }
 
-// jpackage bundles its own trimmed JRE. "exe" needs WiX 3 installed; "app-image" does not.
-// The installer is per-user (%LOCALAPPDATA%) so the app can write its settings, plugins and tools next to the exe without admin rights.
-fun jpackageTask(name: String, type: String) = tasks.register<Exec>(name) {
+// jpackage bundles its own trimmed JRE into an app-image folder.
+val distDir = layout.buildDirectory.dir("dist").get().asFile
+tasks.register<Exec>("packageApp") {
     dependsOn("installDist")
     val libs = layout.buildDirectory.dir("install/${project.name}/lib").get().asFile
-    val dest = layout.buildDirectory.dir("dist").get().asFile
-    // portable WiX 3 (no admin needed): unzip wix314-binaries.zip into %LOCALAPPDATA%\wix3
-    System.getenv("LOCALAPPDATA")?.let { environment("PATH", "$it\\wix3;" + System.getenv("PATH")) }
-    doFirst { File(dest, if (type == "exe") "SoundpadPlus-$appVersion.exe" else "SoundpadPlus").deleteRecursively() }
+    doFirst { File(distDir, "SoundpadPlus").deleteRecursively() }
     commandLine(
-        "jpackage", "--type", type, "--name", "SoundpadPlus", "--app-version", appVersion,
+        "jpackage", "--type", "app-image", "--name", "SoundpadPlus", "--app-version", appVersion,
         "--input", libs, "--main-jar", "${project.name}-$version.jar", "--main-class", "com.emprecio.soundpadplus.MainKt",
         "--add-modules", "java.desktop,java.logging,java.naming,java.management,java.net.http,jdk.crypto.ec,jdk.crypto.cryptoki,jdk.unsupported",
         "--jlink-options", "--strip-native-commands --strip-debug --no-man-pages --no-header-files --compress zip-9",
-        "--dest", dest
-    ).also {
-        if (type == "exe") args(
-            "--win-menu", "--win-shortcut", "--win-dir-chooser", "--win-per-user-install",
-            "--win-upgrade-uuid", "6f1d2c1e-8a3b-4c57-9d0e-5b7a2f4e9c10"
-        )
-    }
+        "--dest", distDir
+    )
 }
-jpackageTask("packageApp", "app-image")
-jpackageTask("packageInstaller", "exe")
+
+// The installer is made with Inno Setup 6 (language choice, "open the program" checkbox). It installs per-user in
+// %LOCALAPPDATA%\SoundpadPlus so the app can write its settings, plugins and tools next to the exe without admin rights.
+tasks.register<Exec>("packageInstaller") {
+    dependsOn("packageApp")
+    val iscc = listOfNotNull(System.getenv("LOCALAPPDATA"), System.getenv("ProgramFiles(x86)"), System.getenv("ProgramFiles"))
+        .map { File(it, if (it == System.getenv("LOCALAPPDATA")) "Programs/Inno Setup 6/ISCC.exe" else "Inno Setup 6/ISCC.exe") }
+        .firstOrNull { it.exists() } ?: File("ISCC.exe")
+    commandLine(
+        iscc, "/Qp", "/DAppVersion=$appVersion", "/DOutputDir=$distDir", "/DSourceDir=${File(distDir, "SoundpadPlus")}",
+        "/DExamplesDir=${file("examples/json-source")}", file("installer/SoundpadPlus.iss")
+    )
+}
 
 kotlin {
     jvmToolchain(21)
