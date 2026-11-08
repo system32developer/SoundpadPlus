@@ -40,6 +40,9 @@ class PluginAndI18nTest {
     fun jsonSourceAcceptsTheExample() = assertEquals("example-json", JsonSource.parse(validJson).id)
 
     @Test
+    fun memeSoundboardPluginParses() = assertEquals("memesoundboard", JsonSource.parse(File("examples/json-source/memesoundboard.json").readText()).id)
+
+    @Test
     fun jsonSourceRejectsUnsafeDefinitions() {
         listOf(
             validJson.replace("https://api.example.com", "http://api.example.com"),
@@ -48,6 +51,7 @@ class PluginAndI18nTest {
             validJson.replace("{query}", "x"),
             validJson.replace("\"id\": \"example-json\"", "\"id\": \"../evil\""),
             validJson.replace("data.items", "data/items"),
+            validJson.replace("\"resultsPath\"", "\"audioBase\": \"https://evil.com/\", \"resultsPath\""),
             "[]",
         ).forEach { assertFailsWith<IllegalArgumentException>(it) { JsonSource.parse(it) } }
     }

@@ -19,6 +19,7 @@ import java.net.URLEncoder
  *   "hosts": ["api.example.com", "cdn.example.com"],
  *   "searchUrl": "https://api.example.com/search?q={query}",
  *   "resultsPath": "data.items",
+ * ("audioBase": "https://cdn.example.com/media/" is optional and goes in front of the audioUrl value)
  *   "fields": { "title": "name", "subtitle": "tags", "duration": "length", "audioUrl": "files.mp3" }
  * }
  * ```
@@ -31,6 +32,7 @@ class JsonSource private constructor(
     private val hosts: Set<String>,
     private val searchUrl: String,
     private val resultsPath: String,
+    private val audioBase: String,
     private val fields: Map<String, String>
 ) : AudioSource {
 
@@ -40,7 +42,7 @@ class JsonSource private constructor(
             ?: error("The answer has no list at '$resultsPath'")
         return results.take(MAX_RESULTS).mapNotNull { item ->
             val title = item.at(fields.getValue("title")).text().ifEmpty { return@mapNotNull null }
-            val audio = item.at(fields.getValue("audioUrl")).text()
+            val audio = audioBase + item.at(fields.getValue("audioUrl")).text()
             if (!allowed(audio, hosts)) return@mapNotNull null
             val preview = audio.takeIf { it.substringBefore('?').endsWith(".mp3", true) }
             Entry(title, item.at(fields["subtitle"]).text(), preview, item.at(fields["duration"]).text()) { progress ->
@@ -87,7 +89,9 @@ class JsonSource private constructor(
                 f.get(k)?.asString?.also { require(PATH.matches(it) && it.isNotEmpty()) { "Invalid fields.$k" } }?.let { k to it }
             }.toMap()
             require("title" in fields && "audioUrl" in fields) { "fields.title and fields.audioUrl are required" }
-            return JsonSource(id, str("name").take(40), str("defaultCategory").take(60), o.get("searchHint")?.asString.orEmpty().take(120), hosts, searchUrl, resultsPath, fields)
+            val audioBase = o.get("audioBase")?.asString.orEmpty()
+            require(audioBase.isEmpty() || allowed(audioBase, hosts)) { "'audioBase' must be an https URL on a declared host" }
+            return JsonSource(id, str("name").take(40), str("defaultCategory").take(60), o.get("searchHint")?.asString.orEmpty().take(120), hosts, searchUrl, resultsPath, audioBase, fields)
         }
     }
 }

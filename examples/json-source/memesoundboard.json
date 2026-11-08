@@ -1,0 +1,11 @@
+{
+  "id": "memesoundboard",
+  "name": "MemeSoundboard",
+  "defaultCategory": "Efectos",
+  "searchHint": "Search memesoundboard.org (double click to listen)…",
+  "hosts": ["play-v1.soundboard.cloud"],
+  "searchUrl": "https://play-v1.soundboard.cloud/api/memesoundboard.org/sounds/search?name={query}",
+  "resultsPath": "results",
+  "audioBase": "https://play-v1.soundboard.cloud/media/",
+  "fields": { "title": "name", "subtitle": "category_name", "audioUrl": "sound_file" }
+}
