@@ -1,5 +1,6 @@
 package com.emprecio.soundpadplus
 
+import com.emprecio.soundpadplus.api.Dependency
 import com.emprecio.soundpadplus.api.Entry
 import com.emprecio.soundpadplus.config.cleanCategory
 import com.emprecio.soundpadplus.plugin.JsonSource
@@ -10,6 +11,7 @@ import com.emprecio.soundpadplus.update.Updater
 import com.emprecio.soundpadplus.util.plain
 import java.io.File
 import java.net.URI
+import java.nio.file.Files
 import java.util.Properties
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,7 +35,24 @@ class PluginAndI18nTest {
         assertFalse("example" in PluginLoader.load(dir).map { it.id })
         assertFalse("example" in PluginLoader.load(dir) { _, _ -> false }.map { it.id })
         val ids = PluginLoader.load(dir) { _, _ -> true }.map { it.id }
-        assertTrue(ids.containsAll(listOf("YouTube", "MyInstants", "example")), "got $ids")
+        assertTrue("example" in ids, "got $ids")
+    }
+
+    @Test
+    fun youTubeAndMyInstantsAreBundledPluginsThatNeedNoApproval() {
+        val dir = Files.createTempDirectory("plugins").toFile()
+        PluginLoader.installBundled(dir)
+        assertTrue(File(dir, "YouTube.jar").isFile && File(dir, "MyInstants.json").isFile)
+        val sources = PluginLoader.load(dir)
+        assertEquals(listOf("YouTube", "MyInstants"), sources.map { it.id })
+        assertEquals(listOf("yt-dlp.exe", "ffmpeg.exe"), sources.first().dependencies.map { it.fileName })
+    }
+
+    @Test
+    fun dependencyRejectsUnsafeFileNames() {
+        listOf("../evil.exe", "a/b.exe", ".hidden", "").forEach {
+            assertFailsWith<IllegalArgumentException>(it) { Dependency("x", it, "https://a.com/x", setOf("a.com"), "https://a.com/x.sha256") }
+        }
     }
 
     @Test

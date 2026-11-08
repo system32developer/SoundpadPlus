@@ -24,6 +24,9 @@ interface AudioSource {
     /** Placeholder text of the search box while this source is selected. */
     val searchHint: String
 
+    /** Files this source needs; the app downloads the missing ones at start-up (see [Dependency]). None by default. */
+    val dependencies: List<Dependency> get() = emptyList()
+
     /** Returns the results for [query]. Throw an exception with a readable message to report an error. */
     fun search(query: String): List<Entry>
 }

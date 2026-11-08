@@ -23,6 +23,7 @@ fun main() {
     UIManager.put("MenuBar.background", BG)
     UIManager.put("TabbedPane.selectedForeground", TEXT)
     SwingUtilities.invokeLater {
+        PluginLoader.installBundled()
         val sources = PluginLoader.load { jar, sha ->
             JOptionPane.showConfirmDialog(null, I18n.t("plugin.approve.text", jar.name, sha), I18n.t("plugin.approve.title"),
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION
@@ -41,7 +42,7 @@ fun main() {
             setLocationRelativeTo(null)
             isVisible = true
         }
-        installToolsIfMissing(frame)
+        installToolsIfMissing(frame, sources)
         if (Settings["autoUpdate", "true"] == "true") checkForUpdates(frame, silent = true)
     }
 }

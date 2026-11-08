@@ -15,8 +15,9 @@ and run it. It installs per user (no admin rights) and the app updates itself fr
 
 Requirement: Windows 10/11 with **Soundpad running** (Remote Control enabled).
 
-On the first start the app downloads `yt-dlp` and `ffmpeg` (about 130 MB) into its `tools` folder and checks their SHA-256,
-which keeps the installer small.
+YouTube and MyInstants are plugins like any other: they ship inside the app and are copied to its `plugins` folder.
+The YouTube plugin asks the app to download `yt-dlp` and `ffmpeg` (about 130 MB) into the `tools` folder on the first start,
+checking their SHA-256, which keeps the installer small. Updating keeps your settings, plugins, languages and tools.
 
 ## Files next to the app
 
@@ -26,9 +27,9 @@ Everything the app stores is in its own folder (right click the shortcut → *Op
 SoundpadPlus/
 ├── SoundpadPlus.exe
 ├── settings.properties   categories, language, auto-update, approved plugin hashes
-├── plugins/              drop plugins here (see below)
+├── plugins/              YouTube.jar, MyInstants.json and any plugin you add (see below)
 ├── lang/                 en.properties and es.properties (editable), plus any language you add
-└── tools/                yt-dlp.exe and ffmpeg.exe, downloaded on first start
+└── tools/                files that plugins declared as dependencies (yt-dlp.exe and ffmpeg.exe), downloaded on first start
 ```
 
 Downloaded audios go to `Music/SoundpadPlus`. When running from source the same files live in `run-data/`.
@@ -89,7 +90,7 @@ Use it when the source has a JSON API that returns direct links to audio files. 
 - Preview (double click) is offered for `.mp3` links.
 - `audioBase` (optional): text put in front of the `audioUrl` value, for APIs that return relative paths. It must be an https URL on a declared host.
 - `headers` (optional): extra request headers (letters, digits and basic punctuation only), sent only with the search request.
-- Real example: `examples/json-source/tuna.json` adds Voicemod's Tuna (uses `headers`).
+- Real example: `src/main/resources/plugins/MyInstants.json` (bundled). `examples/json-source/tuna.json` adds Voicemod's Tuna (uses `headers`).
 - Real example: `examples/json-source/memesoundboard.json` adds [memesoundboard.org](https://memesoundboard.org/); copy it to the `plugins` folder and restart.
 
 ### Jar plugin
@@ -115,6 +116,9 @@ class MySource : AudioSource {
 - Use `Downloads.open / readText / fromUrl` for network access: they only allow HTTPS, block private and local addresses,
   check every redirect and cap sizes (2 MB text, 100 MB audio).
 - Throw an exception with a readable message to show an error in the status bar.
+- Need an external program? Override `dependencies` with a list of `Dependency(name, fileName, url, hosts, checksumUrl, …)`.
+  The app downloads the missing ones into `tools` at start-up, checks their SHA-256 and shows the progress; read the file
+  back with `dependency.file`. See `plugins/youtube` (the bundled YouTube plugin) for yt-dlp and a zipped ffmpeg.
 - Gson and JLayer are on the classpath.
 
 Packaging:

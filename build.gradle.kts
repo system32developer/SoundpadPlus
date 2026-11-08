@@ -4,7 +4,7 @@ plugins {
 }
 
 // Bump on every release: Windows only upgrades to a higher version, and the in-app updater compares it with the GitHub release tag.
-val appVersion = "1.0.9"
+val appVersion = "1.0.10"
 
 application {
     mainClass.set("com.emprecio.soundpadplus.MainKt")
@@ -24,7 +24,16 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+// The YouTube plugin jar travels inside the app and is copied to the plugins folder on start (PluginLoader.installBundled).
+val bundledPlugins = tasks.register<Copy>("bundledPlugins") {
+    dependsOn(":plugins:youtube:jar")
+    from(project(":plugins:youtube").layout.buildDirectory.dir("libs")) { include("YouTube.jar") }
+    into(layout.buildDirectory.dir("generated/bundled/plugins"))
+}
+sourceSets.main { resources.srcDir(layout.buildDirectory.dir("generated/bundled")) }
+
 tasks.processResources {
+    dependsOn(bundledPlugins)
     inputs.property("version", appVersion)
     filesMatching("version.properties") { expand("version" to appVersion) }
 }

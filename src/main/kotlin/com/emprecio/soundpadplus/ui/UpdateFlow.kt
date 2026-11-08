@@ -1,5 +1,6 @@
 package com.emprecio.soundpadplus.ui
 
+import com.emprecio.soundpadplus.api.AudioSource
 import com.emprecio.soundpadplus.i18n.I18n
 import com.emprecio.soundpadplus.tools.ToolInstaller
 import com.emprecio.soundpadplus.update.BuildInfo
@@ -30,11 +31,12 @@ fun checkForUpdates(frame: JFrame, silent: Boolean) {
     }
 }
 
-/** Downloads yt-dlp and ffmpeg in the background on first run, with a progress window. */
-fun installToolsIfMissing(frame: JFrame) {
-    if (!ToolInstaller.missing()) return
+/** Downloads the dependencies the sources declare and are still missing, with a progress window. */
+fun installToolsIfMissing(frame: JFrame, sources: List<AudioSource>) {
+    val deps = sources.flatMap { runCatching { it.dependencies }.getOrDefault(emptyList()) }
+    if (ToolInstaller.missing(deps).isEmpty()) return
     val dialog = ProgressDialog(frame, I18n.t("tools.title")).apply { update(I18n.t("tools.downloading", ""), -1); isVisible = true }
-    async({ ToolInstaller.ensure { tool, p -> SwingUtilities.invokeLater { dialog.update(I18n.t("tools.downloading", tool), p) } } }) { r ->
+    async({ ToolInstaller.ensure(deps) { tool, p -> SwingUtilities.invokeLater { dialog.update(I18n.t("tools.downloading", tool), p) } } }) { r ->
         dialog.dispose()
         r.onFailure { JOptionPane.showMessageDialog(frame, I18n.t("tools.failed", it.message ?: ""), I18n.t("tools.title"), JOptionPane.ERROR_MESSAGE) }
     }

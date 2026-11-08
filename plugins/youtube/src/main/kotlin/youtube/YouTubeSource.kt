@@ -1,22 +1,30 @@
-package com.emprecio.soundpadplus.source
+package youtube
 
 import com.emprecio.soundpadplus.api.AudioSource
+import com.emprecio.soundpadplus.api.Dependency
 import com.emprecio.soundpadplus.api.Downloads
 import com.emprecio.soundpadplus.api.Entry
 import com.emprecio.soundpadplus.i18n.I18n
-import com.emprecio.soundpadplus.tools.ToolInstaller
 import java.io.File
 
-object YtDlp : AudioSource {
+class YouTubeSource : AudioSource {
     override val id = "YouTube"
     override val name = "YouTube"
     override val defaultCategory get() = I18n.t("source.youtube.category")
     override val searchHint get() = I18n.t("source.youtube.hint")
 
-    private val videoId = Regex("[A-Za-z0-9_-]{6,20}")
+    private val ytdlp = Dependency(
+        "yt-dlp", "yt-dlp.exe", "$YTDLP/yt-dlp.exe", setOf("github.com"), "$YTDLP/SHA2-256SUMS", checksumEntry = "yt-dlp.exe"
+    )
+    private val ffmpeg = Dependency(
+        "ffmpeg", "ffmpeg.exe", FFMPEG, setOf("www.gyan.dev", "gyan.dev"), "$FFMPEG.sha256", zipEntry = "/bin/ffmpeg.exe"
+    )
 
-    private fun bin(): String = ToolInstaller.ytdlp.takeIf { it.isFile }?.absolutePath ?: error(I18n.t("tools.notReady"))
-    private fun ffmpegArgs() = listOf("--ffmpeg-location", ToolInstaller.ffmpeg.parent)
+    // The app downloads these at start-up, checks their SHA-256 and shows the progress.
+    override val dependencies = listOf(ytdlp, ffmpeg)
+
+    private fun bin(): String = ytdlp.file.takeIf { it.isFile }?.absolutePath ?: error(I18n.t("tools.notReady"))
+    private fun ffmpegArgs() = listOf("--ffmpeg-location", ffmpeg.file.parent)
 
     private fun process(args: List<String>, merge: Boolean) = ProcessBuilder(listOf(bin()) + args).redirectErrorStream(merge).apply {
         environment()["PYTHONUTF8"] = "1"
@@ -33,7 +41,7 @@ object YtDlp : AudioSource {
     }
 
     private fun download(id: String, title: String, progress: (Int) -> Unit): File {
-        require(videoId.matches(id)) { I18n.t("security.blockedUrl", id) }
+        require(VIDEO_ID.matches(id)) { I18n.t("security.blockedUrl", id) }
         val name = Downloads.safeName(title, id)
         val p = process(
             listOf(
@@ -49,5 +57,11 @@ object YtDlp : AudioSource {
         }
         if (p.waitFor() != 0) error(last.ifEmpty { I18n.t("ytdlp.failed") })
         return File(Downloads.dir, "$name.mp3")
+    }
+
+    private companion object {
+        const val YTDLP = "https://github.com/yt-dlp/yt-dlp/releases/latest/download"
+        const val FFMPEG = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+        val VIDEO_ID = Regex("[A-Za-z0-9_-]{6,20}")
     }
 }

@@ -1,0 +1,10 @@
+{
+  "id": "MyInstants",
+  "name": "MyInstants",
+  "defaultCategory": "Efectos",
+  "searchHint": "Search MyInstants sounds (double click to listen)…",
+  "hosts": ["myinstants.com"],
+  "searchUrl": "https://www.myinstants.com/api/v1/instants/?name={query}&page=1",
+  "resultsPath": "results",
+  "fields": { "title": "name", "subtitle": "description", "audioUrl": "sound" }
+}

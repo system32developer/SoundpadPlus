@@ -73,15 +73,40 @@ begin
       end;
 end;
 
+{ The MSI wipes the install folder when it is removed, so the user's data is moved out of the way first and back afterwards. }
+procedure MoveUserData(const FromDir, ToDir: String);
+var
+  Names: array[0..3] of String;
+  I, ResultCode: Integer;
+begin
+  Names[0] := 'settings.properties';
+  Names[1] := 'plugins';
+  Names[2] := 'lang';
+  Names[3] := 'tools';
+  for I := 0 to 3 do
+    if FileExists(FromDir + '\' + Names[I]) or DirExists(FromDir + '\' + Names[I]) then
+      Exec(ExpandConstant('{cmd}'), '/c move "' + FromDir + '\' + Names[I] + '" "' + ToDir + '\' + Names[I] + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  Code: String;
+  Code, AppDir, Backup, Args: String;
   ResultCode: Integer;
 begin
   if CurStep = ssInstall then
   begin
     Code := FindOldMsi;
-    if Code <> '' then
-      Exec(ExpandConstant('{sys}\msiexec.exe'), '/x ' + Code + ' /qn /norestart', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    if Code = '' then Exit;
+    AppDir := ExpandConstant('{app}');
+    Backup := AppDir + '.userdata';
+    ForceDirectories(Backup);
+    MoveUserData(AppDir, Backup);
+    Args := '/x ' + Code + ' /qn /norestart';
+    { A machine-wide MSI needs administrator rights: ask for them if the quiet attempt fails. }
+    if not Exec(ExpandConstant('{sys}\msiexec.exe'), Args, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+      ShellExec('runas', ExpandConstant('{sys}\msiexec.exe'), Args, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    ForceDirectories(AppDir);
+    MoveUserData(Backup, AppDir);
+    RemoveDir(Backup);
   end;
 end;

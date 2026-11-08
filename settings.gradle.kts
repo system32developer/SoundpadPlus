@@ -3,3 +3,4 @@ plugins {
 }
 rootProject.name = "SoundpadPlus"
 include("examples:example-source")
+include("plugins:youtube")
